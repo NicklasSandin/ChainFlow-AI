@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChainFlow AI</title>
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#0e1117;color:#e6edf3;margin:0}main{max-width:1200px;margin:30px auto;padding:0 20px}.panel{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px;margin-bottom:18px}h1{margin-top:0}textarea,input,select{width:100%;box-sizing:border-box;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:10px;margin:6px 0 12px}button{background:#238636;color:white;border:0;border-radius:8px;padding:9px 14px;margin:4px;cursor:pointer}button.secondary{background:#30363d}.providers{display:flex;gap:14px;flex-wrap:wrap}.providers label{padding:8px 12px;background:#0d1117;border-radius:8px}.msg{border-left:3px solid #58a6ff;padding:10px 14px;margin:12px 0;background:#0d1117;border-radius:6px}.who{font-weight:700;margin-bottom:6px}.err{color:#ff7b72}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<div class="panel"><h1>ChainFlow AI</h1><p>Autonomous multi-model debate, critique and research.</p><button onclick="browserStart()">Open / Login Providers</button><span id="browser"></span></div>
+<div class="grid">
+<div class="panel"><h2>Workflow</h2><label>Objective</label><textarea id="topic" rows="7" placeholder="What should the AI council solve?"></textarea><label>Mode</label><select id="mode"><option value="debate">Debate</option><option value="critic">Critic</option><option value="research">Research</option></select><label>Max turns</label><input id="turns" type="number" value="12" min="1" max="100"><div class="providers"><label><input type="checkbox" value="chatgpt" checked> ChatGPT</label><label><input type="checkbox" value="grok" checked> Grok</label><label><input type="checkbox" value="claude"> Claude</label><label><input type="checkbox" value="kimi"> Kimi</label></div><button onclick="start()">Start</button><button class="secondary" onclick="pause()">Pause</button><button class="secondary" onclick="resume()">Resume</button><button class="secondary" onclick="stop()">Stop</button></div>
+<div class="panel"><h2>Inject instruction</h2><textarea id="inject" rows="5" placeholder="Change direction, challenge an assumption, add a constraint..."></textarea><button onclick="inject()">Inject</button><p id="status">Idle</p></div>
+</div>
+<div class="panel"><h2>Live transcript</h2><div id="transcript"></div></div>
+</main>
+<script>
+async function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined})}
+async function browserStart(){await post('/api/browser/start');document.getElementById('browser').textContent=' Browser started — sign into the providers in the opened windows.'}
+function providers(){return [...document.querySelectorAll('.providers input:checked')].map(x=>x.value)}
+async function start(){await post('/api/relay/start',{topic:document.getElementById('topic').value,mode:document.getElementById('mode').value,max_turns:+document.getElementById('turns').value,providers:providers()})}
+async function pause(){await post('/api/relay/pause')}
+async function resume(){await post('/api/relay/resume')}
+async function stop(){await post('/api/relay/stop')}
+async function inject(){let x=document.getElementById('inject');if(x.value)await post('/api/relay/inject',{message:x.value});x.value=''}
+async function refresh(){let s=await (await fetch('/api/state')).json();document.getElementById('status').textContent=`${s.running?'Running':'Idle'} · ${s.paused?'Paused · ':''}turn ${s.turn}/${s.max_turns}${s.error?' · ERROR: '+s.error:''}`;document.getElementById('transcript').innerHTML=s.transcript.map(m=>`<div class="msg"><div class="who">${m.provider.toUpperCase()} · turn ${m.turn}</div><div>${esc(m.text)}</div></div>`).join('');}
+function esc(s){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('\n','<br>')}
+setInterval(refresh,1000);refresh();
+</script></body></html>
